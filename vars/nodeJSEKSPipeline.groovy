@@ -217,6 +217,7 @@ def call(Map configMap){
                     script{
                         withAWS(region:"${region}",credentials:'aws-creds') {
                             sh """
+                                cd helm
                                 set -e
                                 aws eks update-kubeconfig --region ${region} --name ${PROJECT}-dev
                                 kubectl get nodes
