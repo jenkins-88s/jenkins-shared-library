@@ -7,6 +7,7 @@ def call(Map configMap){
             ACC_ID = "160885265516"
             PROJECT = configMap.get("project")
             COMPONENT = configMap.get("component")
+            region = "us-east-1"
         }
         stages {
             stage('test') {
