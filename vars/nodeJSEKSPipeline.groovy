@@ -126,8 +126,10 @@ def call(Map configMap){
                         )
 
                         if (scanResult != 0) {
+                            utils.updateCommitStatus('failure', 'Trivy OS scan: HIGH/MEDIUM vulnerabilities found', 'Jenkins CI / Trivy OS Scan')
                             error "🚨 Trivy found HIGH/MEDIUM OS vulnerabilities. Pipeline failed."
                         } else {
+                            utils.updateCommitStatus('success', 'Trivy OS scan passed — no HIGH/MEDIUM vulnerabilities', 'Jenkins CI / Trivy OS Scan')
                             echo "✅ No HIGH or MEDIUM OS vulnerabilities found. Pipeline continues."
                         }
                     }
@@ -189,3 +191,4 @@ def call(Map configMap){
         }
     }
 }
+
