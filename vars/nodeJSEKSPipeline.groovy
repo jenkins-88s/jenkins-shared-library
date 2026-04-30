@@ -209,6 +209,25 @@ def call(Map configMap){
                     }
                 }
             }
+            stage('Deploy') {
+                /* when{
+                    expression { deploy_to == "dev" || deploy_to = "qa" || deploy_to = "qa" }
+                } */
+                steps {
+                    script{
+                        withAWS(region:"${region}",credentials:'aws-creds') {
+                            sh """
+                                set -e
+                                aws eks update-kubeconfig --region ${region} --name ${PROJECT}-dev
+                                kubectl get nodes
+                                sed -i "s/IMAGE_VERSION/${appVersion}/g" values.yaml
+                                helm upgrade --install ${COMPONENT} -f values-${deploy_to}.yaml -n ${PROJECT} --atomic --wait --timeout=5m .
+                                #kubectl apply -f ${COMPONENT}-${deploy_to}.yaml
+                            """
+                        }
+                    }
+                }
+            }
         }
         post {
             success {
