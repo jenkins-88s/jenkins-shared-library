@@ -34,27 +34,49 @@ def call(Map configMap){
                 steps {
                     sh 'npm install'
                 }
-            } */
+            }*/
 
-            /*stage ('SonarQube Analysis'){
+            stage('Unit Tests') {
                 steps {
                     script {
-                        def scannerHome = tool name: 'sonar-8' // agent configuration
-                        withSonarQubeEnv('sonar-server') { // analysing and uploading to server
+                        def testResult = sh(script: 'npm test', returnStatus: true)
+                        if (testResult != 0) {
+                            utils.updateCommitStatus('failure', 'Unit tests failed', 'unit-tests')
+                            error "Unit tests failed."
+                        } else {
+                            utils.updateCommitStatus('success', 'Unit tests passed', 'unit-tests')
+                        }
+                    }
+                }
+            }
+
+            stage('SonarQube Analysis'){
+                steps {
+                    script {
+                        def scannerHome = tool name: 'sonar-8'
+                        withSonarQubeEnv('sonar-server') {
                             sh "${scannerHome}/bin/sonar-scanner"
                         }
                     }
                 }
             }
-            
-            stage("Quality Gate") {
+
+            stage('Quality Gate') {
                 steps {
-                timeout(time: 1, unit: 'HOURS') {
-                    waitForQualityGate abortPipeline: true
+                    script {
+                        timeout(time: 1, unit: 'HOURS') {
+                            def qg = waitForQualityGate()
+                            if (qg.status != 'OK') {
+                                utils.updateCommitStatus('failure', "SonarQube quality gate failed: ${qg.status}", 'sonar-scan')
+                                error "Quality gate failed: ${qg.status}"
+                            } else {
+                                utils.updateCommitStatus('success', 'SonarQube quality gate passed', 'sonar-scan')
+                            }
+                        }
+                    }
                 }
-                }
-            } */
-            /* stage('Dependabot Security Check') {
+            } 
+            stage('Dependabot Security Check') {
                 steps {
                     script {
                         withCredentials([string(credentialsId: 'GITHUB_TOKEN_SCAN', variable: 'GITHUB_TOKEN_SCAN')]) {
@@ -74,13 +96,15 @@ def call(Map configMap){
                             ).trim()
 
                             if (alertCount.toInteger() > 0) {
+                                utils.updateCommitStatus('failure', "${alertCount} HIGH/CRITICAL Dependabot alert(s) detected", 'library-scan')
                                 error("Build aborted: ${alertCount} HIGH/CRITICAL Dependabot alert(s) detected. Resolve them before proceeding.")
                             }
+                            utils.updateCommitStatus('success', 'Dependabot check passed — no HIGH/CRITICAL alerts', 'library-scan')
                             echo "Dependabot check passed — no HIGH or CRITICAL vulnerabilities found."
                         }
                     }
                 }
-            } */
+            }
         
             stage('Build Image') {
                 steps {
@@ -169,13 +193,18 @@ def call(Map configMap){
             }
             stage ('Push image to ECR'){
                 steps {
-                script{
-                        withAWS(credentials: 'aws-creds', region: "${region}") {
-                            // Commands here have AWS authentication
-                            sh """
-                                aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com
-                                docker push ${ACC_ID}.dkr.ecr.${region}.amazonaws.com/${PROJECT}/${COMPONENT}:${appVersion}
-                            """
+                    script {
+                        try {
+                            withAWS(credentials: 'aws-creds', region: "${region}") {
+                                sh """
+                                    aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com
+                                    docker push ${ACC_ID}.dkr.ecr.${region}.amazonaws.com/${PROJECT}/${COMPONENT}:${appVersion}
+                                """
+                            }
+                            utils.updateCommitStatus('success', "Image ${appVersion} pushed to ECR", 'push-image')
+                        } catch (err) {
+                            utils.updateCommitStatus('failure', 'Failed to push image to ECR', 'push-image')
+                            throw err
                         }
                     }
                 }
