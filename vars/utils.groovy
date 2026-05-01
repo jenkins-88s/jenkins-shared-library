@@ -110,6 +110,12 @@ def transitionJiraTicket(String issueKey, String transitionName) {
 
                 if [ -z "$TRANSITION_ID" ]; then
                     echo "ERROR: no transition leading to status '$TRANSITION_NAME' found on $ISSUE_KEY"
+                    echo "Available transitions:"
+                    curl -sf \
+                        -u "$JIRA_EMAIL:$JIRA_TOKEN" \
+                        -H "Accept: application/json" \
+                        "$JIRA_URL/rest/api/3/issue/$ISSUE_KEY/transitions" \
+                    | jq -r '.transitions[] | "  id=\(.id) name=\(.name) to=\(.to.name)"'
                     exit 1
                 fi
 
