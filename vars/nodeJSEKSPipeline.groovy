@@ -232,6 +232,27 @@ def call(Map configMap){
                     }
                 }
             }
+
+            stage('Run Component Tests') {
+                when {
+                    expression { params.deploy == true }
+                }
+                steps {
+                    script {
+                        def testJob = "${PROJECT}/${COMPONENT}-tests"
+                        echo "Triggering test pipeline: ${testJob}"
+                        def result = build(
+                            job: testJob,
+                            wait: true,
+                            propagate: false
+                        )
+                        if (result.result != 'SUCCESS') {
+                            error("${COMPONENT} tests failed — deploy marked as failure. Check ${result.absoluteUrl} for details.")
+                        }
+                        echo "${COMPONENT} tests passed."
+                    }
+                }
+            }
         }
         post {
             success {
