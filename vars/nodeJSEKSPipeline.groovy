@@ -33,11 +33,11 @@ def call(Map configMap){
                 }
             }
             // THis is for VM
-            /* stage('Install Dependencies') {
+            stage('Install Dependencies') {
                 steps {
                     sh 'npm install'
                 }
-            }*/
+            }
 
             stage('Unit Tests') {
                 steps {
