@@ -3,15 +3,17 @@ def call(Map configMap) {
         agent { node { label 'roboshop' } }
         parameters {
             choice(name: 'deploy_to', choices: ['dev', 'uat', 'prod'], description: 'Target environment')
-            string(name: 'VERSION',  defaultValue: '', description: 'Short commit SHA — set by Jira webhook for UAT/PROD')
-            string(name: 'JIRA_KEY', defaultValue: '', description: 'Jira issue key — set by Jira webhook for UAT/PROD')
+            string(name: 'VERSION',   defaultValue: '', description: 'Short commit SHA — set by Jira webhook for UAT/PROD')
+            string(name: 'JIRA_KEY',  defaultValue: '', description: 'Jira issue key — set by Jira webhook for UAT/PROD')
+            string(name: 'CR_NUMBER', defaultValue: '', description: 'Change Request number — required for PROD deploy')
         }
         triggers {
             GenericTrigger(
                 genericVariables: [
                     [key: 'deploy_to', value: '$.deploy_to'],
                     [key: 'VERSION',   value: '$.VERSION'],
-                    [key: 'JIRA_KEY',  value: '$.JIRA_KEY']
+                    [key: 'JIRA_KEY',  value: '$.JIRA_KEY'],
+                    [key: 'CR_NUMBER', value: '$.CR_NUMBER']
                 ],
                 token: "${configMap.get('project')}-main-pipeline",
                 causeString: 'Triggered by Jira — $deploy_to deploy',
@@ -38,7 +40,8 @@ def call(Map configMap) {
                         env.DEPLOY_TO      = env.deploy_to  ?: params.deploy_to  ?: 'dev'
                         env.TARGET_VERSION = env.VERSION    ?: params.VERSION    ?: ''
                         env.JIRA_ISSUE     = env.JIRA_KEY   ?: params.JIRA_KEY   ?: ''
-                        echo "DEPLOY_TO=${env.DEPLOY_TO}  TARGET_VERSION=${env.TARGET_VERSION}  JIRA_ISSUE=${env.JIRA_ISSUE}"
+                        env.CR_NUMBER      = env.CR_NUMBER  ?: params.CR_NUMBER  ?: ''
+                        echo "DEPLOY_TO=${env.DEPLOY_TO}  TARGET_VERSION=${env.TARGET_VERSION}  JIRA_ISSUE=${env.JIRA_ISSUE}  CR_NUMBER=${env.CR_NUMBER}"
                     }
                 }
             }
@@ -131,6 +134,15 @@ def call(Map configMap) {
             }
 
             // ── PROD ───────────────────────────────────────────────────────────
+            stage('Validate Change Request') {
+                when { expression { env.DEPLOY_TO == 'prod' } }
+                steps {
+                    script {
+                        utils.validateChangeRequest(env.CR_NUMBER)
+                    }
+                }
+            }
+
             stage('Deploy to PROD') {
                 when { expression { env.DEPLOY_TO == 'prod' } }
                 steps {

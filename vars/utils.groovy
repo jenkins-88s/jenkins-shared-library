@@ -132,3 +132,42 @@ def transitionJiraTicket(String issueKey, String transitionName) {
         }
     }
 }
+
+// Validates a Change Request before PROD deploy.
+// Currently a placeholder — replace the marked sections with real CR tool API calls.
+def validateChangeRequest(String crNumber) {
+    if (!crNumber?.trim()) {
+        error("CR number is required for PROD deploy. Raise a Change Request before triggering PROD.")
+    }
+    echo "Validating Change Request: ${crNumber}"
+
+    // ── TODO: replace with real CR tool API call (ServiceNow, Remedy, etc.) ─
+    //
+    // ServiceNow example:
+    //   withCredentials([usernamePassword(credentialsId: 'snow-creds',
+    //       usernameVariable: 'SNOW_USER', passwordVariable: 'SNOW_PASS')]) {
+    //       def response = sh(script: """
+    //           curl -sf -u "$SNOW_USER:$SNOW_PASS" \
+    //               "https://instance.service-now.com/api/now/table/change_request\
+    //                ?sysparm_query=number=${crNumber}\
+    //                &sysparm_fields=state,start_date,end_date"
+    //       """, returnStdout: true).trim()
+    //       crStatus  = response | jq -r '.result[0].state'
+    //       windowStart = ...
+    //       windowEnd   = ...
+    //   }
+    //
+    // ─────────────────────────────────────────────────────────────────────────
+
+    def crStatus   = "approved"   // placeholder — replace with API response
+    def inWindow   = true         // placeholder — replace with time window check
+
+    if (crStatus != "approved") {
+        error("CR ${crNumber} is not approved. Current status: ${crStatus}. PROD deploy blocked.")
+    }
+    if (!inWindow) {
+        error("CR ${crNumber} is outside the approved change window. PROD deploy blocked.")
+    }
+
+    echo "CR ${crNumber} validated — status: ${crStatus}, within change window: yes"
+}
