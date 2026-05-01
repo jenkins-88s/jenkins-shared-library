@@ -125,7 +125,7 @@ def call(Map configMap) {
                                 helm upgrade --install ${COMPONENT} -f values-uat.yaml -n ${PROJECT}-uat --atomic --wait --timeout=5m .
                             """
                         }
-                        utils.transitionJiraTicket(env.JIRA_ISSUE, 'UAT Passed')
+                        echo "UAT deploy succeeded — Jira transition handled by Jira Automation"
                     }
                 }
             }
@@ -144,7 +144,7 @@ def call(Map configMap) {
                                 helm upgrade --install ${COMPONENT} -f values-prod.yaml -n ${PROJECT}-prod --atomic --wait --timeout=5m .
                             """
                         }
-                        utils.transitionJiraTicket(env.JIRA_ISSUE, 'Done')
+                        echo "PROD deploy succeeded — Jira transition handled by Jira Automation"
                         withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
                             sh '''
                                 APP_VERSION=$(jq -r .version package.json)
