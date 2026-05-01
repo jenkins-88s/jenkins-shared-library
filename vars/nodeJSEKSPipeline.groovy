@@ -1,6 +1,9 @@
 def call(Map configMap){
     pipeline {
-        agent { node { label 'roboshop' } } 
+        agent { node { label 'roboshop' } }
+        parameters {
+            booleanParam(name: 'deploy', defaultValue: false, description: 'Deploy the application after build')
+        }
         environment {
             COURSE = "Jenkins"
             appVersion = ""
@@ -210,9 +213,9 @@ def call(Map configMap){
                 }
             }
             stage('Deploy') {
-                /* when{
-                    expression { deploy_to == "dev" || deploy_to = "qa" || deploy_to = "qa" }
-                } */
+                when {
+                    expression { params.deploy == true }
+                }
                 steps {
                     script{
                         withAWS(region:"${region}",credentials:'aws-creds') {
