@@ -82,7 +82,7 @@ def call(Map configMap){
             stage('Dependabot Security Check') {
                 steps {
                     script {
-                        withCredentials([string(credentialsId: 'GITHUB_TOKEN_SCAN', variable: 'GITHUB_TOKEN_SCAN')]) {
+                        withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN_SCAN')]) {
                             def repoUrl = sh(script: 'git remote get-url origin', returnStdout: true).trim()
                             def repoPath = repoUrl.replaceAll(/.*github\.com[\/:]/, '').replaceAll(/\.git$/, '')
 

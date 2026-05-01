@@ -3,7 +3,7 @@
 // description: short message shown in the GitHub UI (max 140 chars)
 // context: label for the check (e.g. 'Jenkins CI / Build', 'Jenkins CI / Trivy')
 def updateCommitStatus(String state, String description, String context = 'Jenkins CI') {
-    withCredentials([string(credentialsId: 'GITHUB_TOKEN_UPDATE_COMMIT_STATUS', variable: 'GITHUB_TOKEN')]) {
+    withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
         def repoUrl = sh(script: 'git remote get-url origin', returnStdout: true).trim()
         def repoPath = repoUrl.replaceAll(/.*github\.com[\/:]/, '').replaceAll(/\.git$/, '')
 
