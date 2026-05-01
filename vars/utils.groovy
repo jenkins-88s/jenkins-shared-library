@@ -63,6 +63,7 @@ def createJiraTicket(String project, String component, String appVersion, String
                                 project:     { key: $project },
                                 summary:     $summary,
                                 issuetype:   { name: "Story" },
+                                labels:      [$commit],
                                 description: {
                                     type: "doc", version: 1,
                                     content: [{ type: "paragraph", content: [{ type: "text",
@@ -105,10 +106,10 @@ def transitionJiraTicket(String issueKey, String transitionName) {
                     -H "Accept: application/json" \
                     "$JIRA_URL/rest/api/3/issue/$ISSUE_KEY/transitions" \
                     | jq -r --arg name "$TRANSITION_NAME" \
-                             '.transitions[] | select(.name == $name) | .id')
+                             '.transitions[] | select(.to.name == $name) | .id')
 
                 if [ -z "$TRANSITION_ID" ]; then
-                    echo "ERROR: transition '$TRANSITION_NAME' not found on $ISSUE_KEY"
+                    echo "ERROR: no transition leading to status '$TRANSITION_NAME' found on $ISSUE_KEY"
                     exit 1
                 fi
 
