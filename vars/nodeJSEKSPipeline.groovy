@@ -247,8 +247,10 @@ def call(Map configMap){
                             propagate: false
                         )
                         if (result.result != 'SUCCESS') {
+                            utils.updateCommitStatus('failure', "Functional tests failed — see ${result.absoluteUrl}", 'dev-deploy')
                             error("${COMPONENT} tests failed — deploy marked as failure. Check ${result.absoluteUrl} for details.")
                         }
+                        utils.updateCommitStatus('success', 'Functional tests passed — deploy successful', 'dev-deploy')
                         echo "${COMPONENT} tests passed."
                     }
                 }
