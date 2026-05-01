@@ -115,7 +115,7 @@ def transitionJiraTicket(String issueKey, String transitionName) {
                         -u "$JIRA_EMAIL:$JIRA_TOKEN" \
                         -H "Accept: application/json" \
                         "$JIRA_URL/rest/api/3/issue/$ISSUE_KEY/transitions" \
-                    | jq -r '.transitions[] | "  id=\(.id) name=\(.name) to=\(.to.name)"'
+                    | jq -r '.transitions[] | [.id, .name, .to.name] | join(" | ")'
                     exit 1
                 fi
 
