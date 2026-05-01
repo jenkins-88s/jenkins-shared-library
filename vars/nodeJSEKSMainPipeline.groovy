@@ -28,28 +28,24 @@ def call(Map configMap) {
             JIRA_PROJECT = configMap.get("jiraProject")
             region       = "us-east-1"
             CLUSTER      = "roboshop-dev"
-            // resolved in Init stage — pick from webhook env var first, fall back to build param
-            DEPLOY_TO     = ""
-            TARGET_VERSION = ""
-            JIRA_ISSUE    = ""
         }
 
         stages {
-            // ── INIT — normalise webhook env vars vs manual build params ────────
+            // ── INIT — pick webhook env vars (Generic Trigger) over manual params ─
             stage('Init') {
                 steps {
                     script {
-                        DEPLOY_TO      = env.deploy_to  ?: params.deploy_to  ?: 'dev'
-                        TARGET_VERSION = env.VERSION    ?: params.VERSION    ?: ''
-                        JIRA_ISSUE     = env.JIRA_KEY   ?: params.JIRA_KEY   ?: ''
-                        echo "DEPLOY_TO: ${DEPLOY_TO}  TARGET_VERSION: ${TARGET_VERSION}  JIRA_ISSUE: ${JIRA_ISSUE}"
+                        env.DEPLOY_TO      = env.deploy_to  ?: params.deploy_to  ?: 'dev'
+                        env.TARGET_VERSION = env.VERSION    ?: params.VERSION    ?: ''
+                        env.JIRA_ISSUE     = env.JIRA_KEY   ?: params.JIRA_KEY   ?: ''
+                        echo "DEPLOY_TO=${env.DEPLOY_TO}  TARGET_VERSION=${env.TARGET_VERSION}  JIRA_ISSUE=${env.JIRA_ISSUE}"
                     }
                 }
             }
 
             // ── DEV ────────────────────────────────────────────────────────────
             stage('Read Version') {
-                when { expression { DEPLOY_TO == 'dev' } }
+                when { expression { env.DEPLOY_TO == 'dev' } }
                 steps {
                     script {
                         def packageJson = readJSON file: 'package.json'
@@ -61,7 +57,7 @@ def call(Map configMap) {
             }
 
             stage('Promote Image') {
-                when { expression { DEPLOY_TO == 'dev' } }
+                when { expression { env.DEPLOY_TO == 'dev' } }
                 steps {
                     script {
                         withAWS(credentials: 'aws-creds', region: "${region}") {
@@ -79,7 +75,7 @@ def call(Map configMap) {
             }
 
             stage('Deploy to DEV') {
-                when { expression { DEPLOY_TO == 'dev' } }
+                when { expression { env.DEPLOY_TO == 'dev' } }
                 steps {
                     script {
                         withAWS(region: "${region}", credentials: 'aws-creds') {
@@ -95,7 +91,7 @@ def call(Map configMap) {
             }
 
             stage('Functional Tests') {
-                when { expression { DEPLOY_TO == 'dev' } }
+                when { expression { env.DEPLOY_TO == 'dev' } }
                 steps {
                     script {
                         def result = build(job: "${PROJECT}/${COMPONENT}-tests", wait: true, propagate: false)
@@ -107,7 +103,7 @@ def call(Map configMap) {
             }
 
             stage('Create Jira Ticket') {
-                when { expression { DEPLOY_TO == 'dev' } }
+                when { expression { env.DEPLOY_TO == 'dev' } }
                 steps {
                     script {
                         utils.createJiraTicket(JIRA_PROJECT, COMPONENT, appVersion, shortCommit)
@@ -117,38 +113,38 @@ def call(Map configMap) {
 
             // ── UAT ────────────────────────────────────────────────────────────
             stage('Deploy to UAT') {
-                when { expression { DEPLOY_TO == 'uat' } }
+                when { expression { env.DEPLOY_TO == 'uat' } }
                 steps {
                     script {
-                        sh "git checkout ${TARGET_VERSION}"
+                        sh "git checkout ${env.TARGET_VERSION}"
                         withAWS(region: "${region}", credentials: 'aws-creds') {
                             sh """
                                 aws eks update-kubeconfig --region ${region} --name ${CLUSTER}
                                 cd helm
-                                sed -i "s/IMAGE_VERSION/${TARGET_VERSION}/g" values.yaml
+                                sed -i "s/IMAGE_VERSION/${env.TARGET_VERSION}/g" values.yaml
                                 helm upgrade --install ${COMPONENT} -f values-uat.yaml -n ${PROJECT}-uat --atomic --wait --timeout=5m .
                             """
                         }
-                        utils.transitionJiraTicket(JIRA_ISSUE, 'UAT Passed')
+                        utils.transitionJiraTicket(env.JIRA_ISSUE, 'UAT Passed')
                     }
                 }
             }
 
             // ── PROD ───────────────────────────────────────────────────────────
             stage('Deploy to PROD') {
-                when { expression { DEPLOY_TO == 'prod' } }
+                when { expression { env.DEPLOY_TO == 'prod' } }
                 steps {
                     script {
-                        sh "git checkout ${TARGET_VERSION}"
+                        sh "git checkout ${env.TARGET_VERSION}"
                         withAWS(region: "${region}", credentials: 'aws-creds') {
                             sh """
                                 aws eks update-kubeconfig --region ${region} --name ${CLUSTER}
                                 cd helm
-                                sed -i "s/IMAGE_VERSION/${TARGET_VERSION}/g" values.yaml
+                                sed -i "s/IMAGE_VERSION/${env.TARGET_VERSION}/g" values.yaml
                                 helm upgrade --install ${COMPONENT} -f values-prod.yaml -n ${PROJECT}-prod --atomic --wait --timeout=5m .
                             """
                         }
-                        utils.transitionJiraTicket(JIRA_ISSUE, 'Done')
+                        utils.transitionJiraTicket(env.JIRA_ISSUE, 'Done')
                         withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
                             sh '''
                                 APP_VERSION=$(jq -r .version package.json)
@@ -165,10 +161,10 @@ def call(Map configMap) {
 
         post {
             success {
-                echo "${DEPLOY_TO} deploy succeeded for ${COMPONENT}"
+                echo "${env.DEPLOY_TO} deploy succeeded for ${COMPONENT}"
             }
             failure {
-                echo "${DEPLOY_TO} deploy failed for ${COMPONENT}"
+                echo "${env.DEPLOY_TO} deploy failed for ${COMPONENT}"
             }
         }
     }
